@@ -95,7 +95,7 @@ async function verifyEngine(){
   if(verifyPromise)return verifyPromise;
   verifyPromise=(async()=>{
     try{
-      const response=await fetch('assets/import-selftest.pdf?build=ghsafe-v3-audited-20260827',{cache:'no-store'});
+      const response=await fetch('assets/import-selftest.pdf?build=ghsafe-v3-1-audited-20260827',{cache:'no-store'});
       if(!response.ok)throw new Error('No se pudo abrir el PDF interno de comprobación ('+response.status+').');
       const bytes=await response.arrayBuffer();
       const fakeFile={name:'Test nº 999 - Autotest del importador.pdf',arrayBuffer:async()=>bytes.slice(0)};

@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const DB_NAME='TestOposicionesUniversal',DB_VERSION=1,BUILD='ghsafe-v3-audited-20260827';
+const DB_NAME='TestOposicionesUniversal',DB_VERSION=1,BUILD='ghsafe-v3-1-audited-20260827';
 let dbPromise=null;
 function openDB(){
  if(dbPromise)return dbPromise;

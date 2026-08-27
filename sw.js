@@ -1,4 +1,4 @@
-const BUILD='ghsafe-v3-audited-20260827';
+const BUILD='ghsafe-v3-1-audited-20260827';
 const CACHE='test-oposiciones-'+BUILD;
 const q=p=>`${p}?build=${BUILD}`;
 const LOCAL=[
