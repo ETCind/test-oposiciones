@@ -1,7 +1,7 @@
 {
   "name": "Test Oposiciones",
   "short_name": "Tests",
-  "description": "Aplicación de tests. El alojamiento contiene solo el programa vacío; la biblioteca se carga desde un archivo elegido por la usuaria.",
+  "description": "Aplicación de tests. En Mac permite importar PDF; en iPad usa la biblioteca maestra elegida desde iCloud Drive. GitHub no contiene tus preguntas.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

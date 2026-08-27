@@ -27,7 +27,7 @@
     const q=detail.q||{},status=detail.status||statusOf(detail),letters=Object.keys(q.options||{}).sort();
     const resultLabel=status==='correct'?'<span class="print-result-label result-good">CORRECTA</span>':status==='wrong'?'<span class="print-result-label result-bad">INCORRECTA</span>':'<span class="print-result-label result-blank">SIN CONTESTAR</span>';
     const responseLine=status==='blank'?`<p class="print-user-summary"><strong>Tu respuesta:</strong> Sin contestar · <strong>Correcta:</strong> ${esc(q.correct)}. ${esc((q.options||{})[q.correct]||'')}</p>`:'';
-    return `<section class="print-q" data-question-id="${esc(q.n??detail.index+1)}"><div class="print-q-head"><h3>${esc(q.n??detail.index+1)}. ${esc(q.question||'')}</h3>${resultLabel}</div><div class="print-options">${letters.map(l=>optionHTML(detail,l)).join('')}</div>${responseLine}</section>`;
+    const explanation=q.explanation?`<p class="print-explanation"><strong>Explicación:</strong> ${esc(q.explanation)}</p>`:''; return `<section class="print-q" data-question-id="${esc(q.n??detail.index+1)}"><div class="print-q-head"><h3>${esc(q.n??detail.index+1)}. ${esc(q.question||'')}</h3>${resultLabel}</div><div class="print-options">${letters.map(l=>optionHTML(detail,l)).join('')}</div>${responseLine}${explanation}</section>`;
   }
   function buildPrintHTML(result,mode='full'){
     if(!result||!result.test)throw new Error('Resultado de test no válido');

@@ -42,9 +42,9 @@ async function extractPage(pdf,pageNo){
   return {pageNo,width:viewport.width,height:viewport.height,modes:{native,one,two,three},rows:rows.map(r=>({y:r.y,tokens:r.tokens.map(t=>({text:t.text,x:t.x}))})),textItems:tokens.length};
 }
 async function extractPdf(file,onProgress){
-  if(!window.pdfjsLib)throw new Error('No se ha podido cargar el motor PDF.js. Comprueba la conexión y vuelve a intentarlo.');
+  if(!window.pdfjsLib)throw new Error('No se ha podido cargar el motor PDF seguro. Comprueba la conexión del Mac y vuelve a intentarlo.');
   const data=new Uint8Array(await file.arrayBuffer());let task;
-  try{task=window.pdfjsLib.getDocument({data,disableAutoFetch:false,disableStream:false});}catch(e){throw new Error('No se puede abrir el PDF: '+(e.message||e));}
+  try{task=window.pdfjsLib.getDocument({data,disableAutoFetch:false,disableStream:false,isEvalSupported:false,enableScripting:false,enableXfa:false});}catch(e){throw new Error('No se puede abrir el PDF: '+(e.message||e));}
   let pdf;try{pdf=await task.promise;}catch(e){if(e?.name==='PasswordException')throw new Error('El PDF está protegido con contraseña. Guarda una copia sin contraseña e impórtala de nuevo.');throw new Error('No se puede leer el PDF: '+(e.message||e));}
   const pages=[];let itemCount=0;
   for(let n=1;n<=pdf.numPages;n++){onProgress?.(n,pdf.numPages);const p=await extractPage(pdf,n);itemCount+=p.textItems;pages.push(p);}
@@ -58,5 +58,5 @@ async function processFile(file,topic,onProgress){
   const pages=await extractPdf(file,onProgress),analysis=C.analyze(pages),title=titleFromFile(file.name);
   return {...analysis,fileName:file.name,title,topic,id:stableId(topic,title),pagesMeta:{count:pages.length},processedAt:new Date().toISOString()};
 }
-window.PdfImporter={extractPdf,processFile,titleFromFile,stableId};
+window.PdfImporter={extractPdf,processFile,titleFromFile,stableId,securityOptions:Object.freeze({isEvalSupported:false,enableScripting:false,enableXfa:false})};
 })();
