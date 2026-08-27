@@ -1,7 +1,13 @@
-const BUILD='ghsafe-v2.1-20260827';
-const CACHE='test-oposiciones-ghsafe-v2.1-20260827';
+const BUILD='ghsafe-v3-audited-20260827';
+const CACHE='test-oposiciones-'+BUILD;
 const q=p=>`${p}?build=${BUILD}`;
-const LOCAL=['./',q('./index.html'),q('./styles.css'),q('./pdfjs-loader.mjs'),q('./seed-library.js'),q('./sync-core.js'),q('./db.js'),q('./parser-core.js'),q('./pdf-importer.js'),q('./report-core.js'),q('./app.js'),q('./private-mobile.js'),'./manifest.webmanifest',q('./autotest.html'),q('./autotest.js'),'./assets/icon-192.png','./assets/icon-512.png'];
+const LOCAL=[
+  './',q('./index.html'),q('./styles.css'),q('./pdfjs-loader.mjs'),q('./seed-library.js'),
+  q('./sync-core.js'),q('./db.js'),q('./parser-core.js'),q('./pdf-importer.js'),
+  q('./report-core.js'),q('./app.js'),q('./private-mobile.js'),'./manifest.webmanifest',
+  q('./autotest.html'),q('./autotest.js'),'./assets/icon-192.png','./assets/icon-512.png',
+  q('./assets/import-selftest.pdf')
+];
 
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const c=await caches.open(CACHE);
@@ -20,32 +26,16 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const u=new URL(event.request.url);
   if(u.origin!==self.location.origin)return;
-
-  // Navegaciones: red primero. Evita que una versión antigua de la app quede
-  // atrapada indefinidamente en la caché del service worker.
   if(event.request.mode==='navigate'){
     event.respondWith((async()=>{
-      try{
-        const r=await fetch(event.request,{cache:'no-store'});
-        if(r&&r.ok){
-          const c=await caches.open(CACHE);
-          c.put(q('./index.html'),r.clone()).catch(()=>{});
-        }
-        return r;
-      }catch(e){
+      try{return await fetch(event.request,{cache:'no-store'});}catch{
         return (await caches.match(q('./index.html'))) || (await caches.match('./')) || Response.error();
       }
     })());
     return;
   }
-
   event.respondWith((async()=>{
-    const cached=await caches.match(event.request);
-    if(cached)return cached;
-    try{
-      const r=await fetch(event.request);
-      if(r&&r.ok){const c=await caches.open(CACHE);c.put(event.request,r.clone()).catch(()=>{});}
-      return r;
-    }catch(e){throw e;}
+    const cached=await caches.match(event.request);if(cached)return cached;
+    try{const r=await fetch(event.request,{cache:'no-store'});if(r&&r.ok){const c=await caches.open(CACHE);c.put(event.request,r.clone()).catch(()=>{});}return r;}catch(e){throw e;}
   })());
 });

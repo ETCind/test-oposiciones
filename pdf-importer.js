@@ -32,8 +32,37 @@ function columnLines(tokens,pageWidth,pageHeight,count){
   const head=linesFromRows(groupRows(wide),pageHeight).filter(l=>l.y<125);
   const parts=buckets.map(b=>linesFromRows(groupRows(b),pageHeight));return head.concat(...parts);
 }
+async function readTextContentSafe(page,params={}){
+  // Safari 26.x puede lanzar "undefined is not a function" dentro de
+  // PDFPageProxy.getTextContent() porque ReadableStream no expone
+  // Symbol.asyncIterator. Consumir el mismo stream con getReader() evita
+  // ese camino y conserva los mismos chunks de PDF.js.
+  if(page&&typeof page.streamTextContent==='function'){
+    const stream=page.streamTextContent(params);
+    if(stream&&typeof stream.getReader==='function'){
+      const reader=stream.getReader(),out={items:[],styles:Object.create(null),lang:null};
+      try{
+        while(true){
+          const part=await reader.read();
+          if(part.done)break;
+          const value=part.value||{};
+          if(out.lang==null&&value.lang!=null)out.lang=value.lang;
+          if(value.styles&&typeof value.styles==='object')Object.assign(out.styles,value.styles);
+          if(Array.isArray(value.items))out.items.push(...value.items);
+        }
+      }finally{
+        try{reader.releaseLock?.();}catch{}
+      }
+      return out;
+    }
+  }
+  // Compatibilidad defensiva para mocks/implementaciones antiguas. En Safari
+  // real con PDF.js 6.x se usa siempre el camino getReader() anterior.
+  if(page&&typeof page.getTextContent==='function')return page.getTextContent(params);
+  throw new Error('El motor PDF no ofrece un método compatible para extraer texto.');
+}
 async function extractPage(pdf,pageNo){
-  const page=await pdf.getPage(pageNo),viewport=page.getViewport({scale:1}),tc=await page.getTextContent({normalizeWhitespace:false,disableCombineTextItems:false});
+  const page=await pdf.getPage(pageNo),viewport=page.getViewport({scale:1}),tc=await readTextContentSafe(page,{normalizeWhitespace:false,disableCombineTextItems:false});
   const tokens=tc.items.map(i=>tokenFromItem(i,viewport.height)).filter(t=>t.text);
   if(tokens.length<2)return {pageNo,width:viewport.width,height:viewport.height,modes:{native:[],one:[],two:[],three:[]},rows:[],textItems:0};
   const rows=groupRows(tokens),one=linesFromRows(rows,viewport.height),native=nativeLines(tokens,viewport.height,viewport.width),two=columnLines(tokens,viewport.width,viewport.height,2),three=columnLines(tokens,viewport.width,viewport.height,3);
@@ -58,5 +87,35 @@ async function processFile(file,topic,onProgress){
   const pages=await extractPdf(file,onProgress),analysis=C.analyze(pages),title=titleFromFile(file.name);
   return {...analysis,fileName:file.name,title,topic,id:stableId(topic,title),pagesMeta:{count:pages.length},processedAt:new Date().toISOString()};
 }
-window.PdfImporter={extractPdf,processFile,titleFromFile,stableId,securityOptions:Object.freeze({isEvalSupported:false,enableScripting:false,enableXfa:false})};
+let verifyPromise=null;
+async function verifyEngine(){
+  if(globalThis.TestPlatform?.isIPadOrIPhone)return {ok:false,mobileDisabled:true,reason:'La importación PDF está desactivada en iPad.'};
+  if(!globalThis.TestPdfEngine?.ready||!window.pdfjsLib)return {ok:false,reason:globalThis.TestPdfEngine?.error||'El motor PDF todavía no está disponible.'};
+  if(globalThis.TestPdfEngine?.selfTestPassed)return {ok:true,cached:true,detail:globalThis.TestPdfEngine.selfTestDetail||'Autotest previo correcto'};
+  if(verifyPromise)return verifyPromise;
+  verifyPromise=(async()=>{
+    try{
+      const response=await fetch('assets/import-selftest.pdf?build=ghsafe-v3-audited-20260827',{cache:'no-store'});
+      if(!response.ok)throw new Error('No se pudo abrir el PDF interno de comprobación ('+response.status+').');
+      const bytes=await response.arrayBuffer();
+      const fakeFile={name:'Test nº 999 - Autotest del importador.pdf',arrayBuffer:async()=>bytes.slice(0)};
+      const r=await processFile(fakeFile,'Autotest interno');
+      const expected=['A','B','C','D'];
+      const good=r.status==='verified'&&r.confidence==='high'&&r.questions.length===4&&Object.keys(r.solutions||{}).length===4&&
+        r.questions.every((q,i)=>q.n===i+1&&q.correct===expected[i]&&String(q.question||'').trim()&&Object.keys(q.options||{}).length===4);
+      if(!good)throw new Error(`El PDF interno no se reconstruyó de forma exacta (estado ${r.status}, ${r.questions.length}/4 preguntas, ${Object.keys(r.solutions||{}).length}/4 soluciones).`);
+      const detail='PDF real interno: 4/4 preguntas y 4/4 soluciones';
+      globalThis.TestPdfEngine=Object.freeze({...globalThis.TestPdfEngine,selfTestPassed:true,selfTestDetail:detail});
+      window.dispatchEvent(new CustomEvent('test-pdf-selftest-ready',{detail:globalThis.TestPdfEngine}));
+      return {ok:true,detail,result:r};
+    }catch(e){
+      const reason=e?.message||String(e);
+      globalThis.TestPdfEngine=Object.freeze({...globalThis.TestPdfEngine,selfTestPassed:false,selfTestError:reason});
+      window.dispatchEvent(new CustomEvent('test-pdf-selftest-ready',{detail:globalThis.TestPdfEngine}));
+      return {ok:false,reason};
+    }finally{verifyPromise=null;}
+  })();
+  return verifyPromise;
+}
+window.PdfImporter={extractPdf,processFile,titleFromFile,stableId,readTextContentSafe,verifyEngine,securityOptions:Object.freeze({isEvalSupported:false,enableScripting:false,enableXfa:false})};
 })();

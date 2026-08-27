@@ -23,11 +23,23 @@
     else if(isCorrect){label='<span class="print-tag tag-good">✓ Respuesta correcta</span>';}
     return `<div class="${cls}" data-option="${esc(letter)}"><span class="print-letter">${esc(letter)}.</span><span class="print-option-text">${esc((q.options||{})[letter]||'')}</span>${label}</div>`;
   }
+  function notesHTML(q){
+    const parts=[];
+    if(q.explanation)parts.push(`<p class="print-explanation"><strong>Explicación:</strong> ${esc(q.explanation)}</p>`);
+    if(q.optionExplanations&&typeof q.optionExplanations==='object'){
+      const rows=Object.keys(q.options||{}).sort().filter(L=>q.optionExplanations[L]).map(L=>`<p class="print-explanation"><strong>${esc(L)}.</strong> ${esc(q.optionExplanations[L])}</p>`).join('');
+      if(rows)parts.push(`<div class="print-explanation"><strong>Por qué cada opción:</strong>${rows}</div>`);
+    }
+    if(q.memoryTip)parts.push(`<p class="print-explanation"><strong>Regla de memoria:</strong> ${esc(q.memoryTip)}</p>`);
+    if(q.trap)parts.push(`<p class="print-explanation"><strong>Trampa:</strong> ${esc(q.trap)}</p>`);
+    if(q.sourceNote)parts.push(`<p class="print-explanation"><strong>Fuente:</strong> ${esc(q.sourceNote)}</p>`);
+    return parts.join('');
+  }
   function questionHTML(detail){
     const q=detail.q||{},status=detail.status||statusOf(detail),letters=Object.keys(q.options||{}).sort();
     const resultLabel=status==='correct'?'<span class="print-result-label result-good">CORRECTA</span>':status==='wrong'?'<span class="print-result-label result-bad">INCORRECTA</span>':'<span class="print-result-label result-blank">SIN CONTESTAR</span>';
     const responseLine=status==='blank'?`<p class="print-user-summary"><strong>Tu respuesta:</strong> Sin contestar · <strong>Correcta:</strong> ${esc(q.correct)}. ${esc((q.options||{})[q.correct]||'')}</p>`:'';
-    const explanation=q.explanation?`<p class="print-explanation"><strong>Explicación:</strong> ${esc(q.explanation)}</p>`:''; return `<section class="print-q" data-question-id="${esc(q.n??detail.index+1)}"><div class="print-q-head"><h3>${esc(q.n??detail.index+1)}. ${esc(q.question||'')}</h3>${resultLabel}</div><div class="print-options">${letters.map(l=>optionHTML(detail,l)).join('')}</div>${responseLine}${explanation}</section>`;
+    return `<section class="print-q" data-question-id="${esc(q.n??detail.index+1)}"><div class="print-q-head"><h3>${esc(q.n??detail.index+1)}. ${esc(q.question||'')}</h3>${resultLabel}</div><div class="print-options">${letters.map(l=>optionHTML(detail,l)).join('')}</div>${responseLine}${notesHTML(q)}</section>`;
   }
   function buildPrintHTML(result,mode='full'){
     if(!result||!result.test)throw new Error('Resultado de test no válido');
